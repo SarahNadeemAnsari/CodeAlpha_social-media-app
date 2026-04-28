@@ -1,39 +1,34 @@
-// routes/comments.js
 const express = require('express');
 const router = express.Router();
 const Comment = require('../models/Comment');
-const Post = require('../models/Post');
+const auth = require('../middleware/auth');
 
-// @route POST /api/comments
-// Add a comment to a post
-router.post('/', async (req, res) => {
-  const { content, author, postID } = req.body;
-
+// ADD COMMENT
+router.post('/:postId', auth, async (req, res) => {
   try {
-    // Check if post exists
-    const post = await Post.findById(postID);
-    if (!post) return res.status(404).json({ msg: 'Post not found' });
+    const comment = new Comment({
+      user: req.user.id,
+      post: req.params.postId,
+      text: req.body.text
+    });
 
-    const comment = new Comment({ content, author, postID });
     await comment.save();
-
-    res.json(comment);
+    const populated = await comment.populate('user', 'username');
+    res.json(populated);
   } catch (err) {
-    console.error(err);
     res.status(500).send('Server error');
   }
 });
 
-// @route GET /api/comments/:postID
-// Get all comments for a post
-router.get('/:postID', async (req, res) => {
+// GET COMMENTS
+router.get('/:postId', async (req, res) => {
   try {
-    const comments = await Comment.find({ postID: req.params.postID })
-      .sort({ createdAt: 1 }) // oldest first
-      .populate('author', 'username');
+    const comments = await Comment.find({ post: req.params.postId })
+      .populate('user', 'username')
+      .sort({ createdAt: -1 });
+
     res.json(comments);
   } catch (err) {
-    console.error(err);
     res.status(500).send('Server error');
   }
 });
